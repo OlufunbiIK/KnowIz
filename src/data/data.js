@@ -46,10 +46,6 @@ export const difficultyLevel = [
   },
 ];
 
-export const quizType = [
-  { id: 1, typeOption: "Multiple Choice", emoji: "✅❓" },
-  { id: 2, typeOption: "True/False", emoji: "✔️❌" },
-];
 export const categories = [
   { id: 1, categoryOption: "General Knowledge", emoji: "🧠" },
   { id: 2, categoryOption: "Entertainment: Books", emoji: "📚" },

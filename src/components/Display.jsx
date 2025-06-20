@@ -12,10 +12,9 @@ export default function Display() {
   const [searchParams] = useSearchParams();
   const mode = searchParams.get("mode");
   const level = searchParams.get("level");
-  const type = searchParams.get("type");
   const category = searchParams.get("category");
 
-  const selected = mode || level || type || category;
+  const selected = mode || level || category;
 
   return (
     <div
@@ -30,18 +29,11 @@ export default function Display() {
         </h1>
 
         <div className="mt-8 text-center text-black">
-          {/* {mode === "Flip Cards" && <FlipCard />}
-          {mode === "Multiple Choice" && <MultipleChoices />}
-          {mode === "True/False" && <TrueOrFalse />} */}
-
           {mode && <IntegratedDisplayPage selected={mode} />}
 
           {(level === "Easy" || level === "Hard" || level === "Medium") && (
             <IntegratedDifficultyPage />
           )}
-
-          {type === "Multiple Choice" && <MultipleChoiceContent />}
-          {type === "True/False" && <TrueFalseContent />}
 
           {category && <IntegratedCategoryPage selectedCategory={category} />}
         </div>

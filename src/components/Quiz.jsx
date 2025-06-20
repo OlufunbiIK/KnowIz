@@ -49,12 +49,6 @@ export default function Quiz() {
     setLevel(selectedLevel);
   };
 
-  function handleTypeChange(e) {
-    const selectedType = e.target.value;
-    setType(selectedType);
-    navigateWithParams({ mode: display, level, type: selectedType, category });
-  }
-
   function handleCategoryChange(e) {
     const category = e.target.value;
     navigate(`/category/${encodeURIComponent(category)}`);
@@ -97,23 +91,6 @@ export default function Quiz() {
               <option key={level.id} value={level.levelOption}>
                 {level.levelOption}
                 {level.emoji}
-              </option>
-            ))}
-          </select>
-
-          <select
-            onChange={handleTypeChange}
-            value={type}
-            defaultValue=""
-            className="p-2 rounded border border-gray-300"
-          >
-            <option value="" disabled>
-              Quiz Type
-            </option>
-            {quizType.map((type) => (
-              <option key={type.id} value={type.typeOption}>
-                {type.typeOption}
-                {type.emoji}
               </option>
             ))}
           </select>
