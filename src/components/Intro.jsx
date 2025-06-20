@@ -22,7 +22,7 @@ export default function Intro() {
   }, []);
 
   return (
-    <div className="intro relative min-h-screen pt-[5rem] md:pt-0 overflow-hidden">
+    <div className="intro relative min-h-screen pt-[3rem] md:pt-0 overflow-hidden">
       {/* Video background */}
       <video
         className="absolute top-0 left-0 w-full h-full object-cover"
