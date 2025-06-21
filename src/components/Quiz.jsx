@@ -88,8 +88,8 @@ export default function Quiz() {
               Difficulty Level
             </option>
             {difficultyLevel.map((level) => (
-              <option key={level.id} value={level.levelOption}>
-                {level.levelOption}
+              <option key={level.id} value={level.name}>
+                {level.name}
                 {level.emoji}
               </option>
             ))}

@@ -1,5 +1,12 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, {
+  useEffect,
+  useState,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import { displayMode } from "../../data/data";
+import { useNavigate, useParams } from "react-router-dom";
 
 // Rate limiter class
 class RateLimiter {
@@ -32,12 +39,18 @@ class RateLimiter {
 const rateLimiter = new RateLimiter();
 
 // Flip Cards Component
-export const FlipCardsContent = ({ isActive }) => {
+export const FlipCardsContent = ({ isActive, refreshTrigger }) => {
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Memoize the current question to prevent unnecessary re-renders
+  const currentQuestion = useMemo(
+    () => questions[currentIndex],
+    [questions, currentIndex]
+  );
 
   const fetchQuestions = useCallback(
     async (retryCount = 0) => {
@@ -45,6 +58,8 @@ export const FlipCardsContent = ({ isActive }) => {
 
       setLoading(true);
       setError(null);
+      setCurrentIndex(0);
+      setShowAnswer(false);
 
       try {
         await rateLimiter.waitForSlot();
@@ -83,7 +98,7 @@ export const FlipCardsContent = ({ isActive }) => {
     if (isActive) {
       fetchQuestions();
     }
-  }, [isActive, fetchQuestions]);
+  }, [isActive, refreshTrigger, fetchQuestions]);
 
   const handleNext = () => {
     if (currentIndex < questions.length - 1) {
@@ -132,8 +147,6 @@ export const FlipCardsContent = ({ isActive }) => {
     );
   }
 
-  const currentQuestion = questions[currentIndex];
-
   return (
     <div className="space-y-6">
       <div className="text-center">
@@ -179,18 +192,26 @@ export const FlipCardsContent = ({ isActive }) => {
         </div>
       </div>
 
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col lg:flex-row gap-4 justify-between items-center">
         <button
           onClick={handlePrev}
           disabled={currentIndex === 0}
-          className="px-4 py-2 bg-gray-500 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-600"
+          className={`px-4 py-2 rounded text-white w-full cursor-pointer transition-all duration-200 ${
+            currentIndex === 0
+              ? "bg-[#0c1125] cursor-not-allowed opacity-70"
+              : "bg-[#0c1125] hover:bg-[#233166]"
+          }`}
         >
           ← Previous
         </button>
 
         <button
           onClick={() => setShowAnswer(!showAnswer)}
-          className="px-6 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
+          className={`px-6 py-2 text-white rounded w-full 4 ${
+            showAnswer
+              ? "bg-green-500 hover:bg-green-600"
+              : "bg-purple-500 hover:bg-purple-600"
+          }`}
         >
           {showAnswer ? "Show Question" : "Show Answer"}
         </button>
@@ -198,7 +219,7 @@ export const FlipCardsContent = ({ isActive }) => {
         <button
           onClick={handleNext}
           disabled={currentIndex === questions.length - 1}
-          className="px-4 py-2 bg-gray-500 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-600"
+          className="px-4 py-2 bg-[#0c1125] text-white rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#233166] w-full"
         >
           Next →
         </button>
@@ -208,7 +229,7 @@ export const FlipCardsContent = ({ isActive }) => {
 };
 
 // Multiple Choice Component
-export const MultipleChoiceContent = ({ isActive }) => {
+export const MultipleChoiceContent = ({ isActive, refreshTrigger }) => {
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState([]);
@@ -216,12 +237,26 @@ export const MultipleChoiceContent = ({ isActive }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const currentQuestion = questions[currentIndex];
+
+  // Memoize the shuffled answers to prevent re-shuffling on every render
+  const allAnswers = useMemo(() => {
+    if (!currentQuestion) return [];
+    return [
+      ...currentQuestion.incorrect_answers,
+      currentQuestion.correct_answer,
+    ].sort(() => Math.random() - 0.5);
+  }, [currentQuestion]);
+
   const fetchQuestions = useCallback(
     async (retryCount = 0) => {
       if (!isActive) return;
 
       setLoading(true);
       setError(null);
+      setCurrentIndex(0);
+      setSelectedAnswers([]);
+      setScore(null);
 
       try {
         await rateLimiter.waitForSlot();
@@ -260,7 +295,7 @@ export const MultipleChoiceContent = ({ isActive }) => {
     if (isActive) {
       fetchQuestions();
     }
-  }, [isActive, fetchQuestions]);
+  }, [isActive, refreshTrigger, fetchQuestions]);
 
   const handleRetakeQuiz = () => {
     setScore(null);
@@ -396,11 +431,6 @@ export const MultipleChoiceContent = ({ isActive }) => {
     );
   }
 
-  const currentQuestion = questions[currentIndex];
-  const allAnswers = [
-    ...currentQuestion.incorrect_answers,
-    currentQuestion.correct_answer,
-  ].sort(() => Math.random() - 0.5);
   const optionLabels = ["A", "B", "C", "D"];
 
   return (
@@ -432,7 +462,7 @@ export const MultipleChoiceContent = ({ isActive }) => {
 };
 
 // True/False Component
-export const TrueFalseContent = ({ isActive }) => {
+export const TrueFalseContent = ({ isActive, refreshTrigger }) => {
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState([]);
@@ -440,12 +470,21 @@ export const TrueFalseContent = ({ isActive }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Memoize the current question to prevent unnecessary re-renders
+  const current = useMemo(
+    () => questions[currentIndex],
+    [questions, currentIndex]
+  );
+
   const fetchQuestions = useCallback(
     async (retryCount = 0) => {
       if (!isActive) return;
 
       setLoading(true);
       setError(null);
+      setCurrentIndex(0);
+      setSelectedAnswers([]);
+      setScore(null);
 
       try {
         await rateLimiter.waitForSlot();
@@ -484,7 +523,7 @@ export const TrueFalseContent = ({ isActive }) => {
     if (isActive) {
       fetchQuestions();
     }
-  }, [isActive, fetchQuestions]);
+  }, [isActive, refreshTrigger, fetchQuestions]);
 
   const handleRetake = () => {
     setCurrentIndex(0);
@@ -603,8 +642,6 @@ export const TrueFalseContent = ({ isActive }) => {
     );
   }
 
-  const current = questions[currentIndex];
-
   return (
     <div className="space-y-6">
       <div className="text-center">
@@ -639,7 +676,7 @@ export const TrueFalseContent = ({ isActive }) => {
 };
 
 // Main Display Content Component
-const DisplayContent = ({ selectedMode }) => {
+const DisplayContent = ({ selectedMode, refreshTrigger }) => {
   const modeObj = displayMode.find(
     (mode) =>
       mode.name.toLowerCase() === selectedMode?.toLowerCase() ||
@@ -648,7 +685,7 @@ const DisplayContent = ({ selectedMode }) => {
 
   if (!selectedMode) {
     return (
-      <div className="p-8 text-center text-gray-500">
+      <div className="p-8 text-center text-[#0c1125]">
         Please select a display mode to start
       </div>
     );
@@ -664,9 +701,21 @@ const DisplayContent = ({ selectedMode }) => {
         </div>
       </div>
 
-      <FlipCardsContent isActive={selectedMode === "Flip Cards"} />
-      <MultipleChoiceContent isActive={selectedMode === "Multiple Choice"} />
-      <TrueFalseContent isActive={selectedMode === "True/False"} />
+      <FlipCardsContent
+        key={`flip-${refreshTrigger}`}
+        isActive={selectedMode === "Flip Cards"}
+        refreshTrigger={refreshTrigger}
+      />
+      <MultipleChoiceContent
+        key={`mc-${refreshTrigger}`}
+        isActive={selectedMode === "Multiple Choice"}
+        refreshTrigger={refreshTrigger}
+      />
+      <TrueFalseContent
+        key={`tf-${refreshTrigger}`}
+        isActive={selectedMode === "True/False"}
+        refreshTrigger={refreshTrigger}
+      />
     </div>
   );
 };
@@ -676,6 +725,7 @@ export const IntegratedDisplayPage = ({ selectedMode: propMode }) => {
   const [selectedDisplayMode, setSelectedDisplayMode] = useState(
     propMode || ""
   );
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     if (propMode) {
@@ -685,14 +735,22 @@ export const IntegratedDisplayPage = ({ selectedMode: propMode }) => {
 
   const handleModeChange = (e) => {
     setSelectedDisplayMode(e.target.value);
+    setRefreshTrigger((prev) => prev + 1); // Trigger refresh when mode changes
   };
 
   const handleCardClick = (modeObj) => {
-    setSelectedDisplayMode(modeObj.name);
+    if (selectedDisplayMode === modeObj.name) {
+      // If clicking the same mode, just refresh the questions
+      setRefreshTrigger((prev) => prev + 1);
+    } else {
+      // If clicking a different mode, change mode and refresh
+      setSelectedDisplayMode(modeObj.name);
+      setRefreshTrigger((prev) => prev + 1);
+    }
   };
 
   return (
-    <div className="bg-gray-100 p-2 sm:p-4 lg:p-6">
+    <div className="p-2 sm:p-4 lg:p-6">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800 mb-4 text-center">
           Quiz Display Modes
@@ -716,32 +774,75 @@ export const IntegratedDisplayPage = ({ selectedMode: propMode }) => {
           </select>
         </div>
 
-        {/* Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-          {displayMode.map((mode) => (
-            <div
-              key={mode.id}
-              onClick={() => handleCardClick(mode)}
-              className={`p-3 sm:p-4 rounded-lg cursor-pointer transition-all duration-200 bg-gradient-to-r ${
-                mode.color
-              } text-white shadow-lg ${
-                selectedDisplayMode === mode.name ? "ring-2 ring-white" : ""
-              }`}
-            >
-              <div className="text-center">
-                <div className="text-2xl sm:text-3xl mb-1">{mode.emoji}</div>
-                <h3 className="text-sm sm:text-lg font-bold mb-1">
-                  {mode.name}
-                </h3>
-                <p className="text-xs sm:text-sm opacity-90 hidden sm:block">
-                  {mode.description}
-                </p>
+        {/* Cards - Show selected card only on small/medium screens, all cards on large screens */}
+        <div className="mb-4">
+          {/* Show only selected card on small and medium screens */}
+          <div className="lg:hidden">
+            {selectedDisplayMode && (
+              <div className="grid grid-cols-1 gap-3">
+                {displayMode
+                  .filter((mode) => mode.name === selectedDisplayMode)
+                  .map((mode) => (
+                    <div
+                      key={mode.id}
+                      onClick={() => handleCardClick(mode)}
+                      className={`p-3 sm:p-4 rounded-lg cursor-pointer transition-all duration-200 bg-gradient-to-r ${mode.color} text-white shadow-lg ring-2 ring-white hover:scale-105`}
+                    >
+                      <div className="text-center">
+                        <div className="text-2xl sm:text-3xl mb-1">
+                          {mode.emoji}
+                        </div>
+                        <h3 className="text-sm sm:text-lg font-bold mb-1">
+                          {mode.name}
+                        </h3>
+                        <p className="text-xs sm:text-sm opacity-90 hidden sm:block">
+                          {mode.description}
+                        </p>
+                        <p className="text-xs opacity-75 mt-1">
+                          Click to refresh questions
+                        </p>
+                      </div>
+                    </div>
+                  ))}
               </div>
-            </div>
-          ))}
+            )}
+          </div>
+
+          {/* Show all cards on large screens */}
+          <div className="hidden lg:grid lg:grid-cols-3 gap-3">
+            {displayMode.map((mode) => (
+              <div
+                key={mode.id}
+                onClick={() => handleCardClick(mode)}
+                className={`p-3 sm:p-4 rounded-lg cursor-pointer transition-all duration-200 bg-gradient-to-r ${
+                  mode.color
+                } text-white shadow-lg hover:scale-105 ${
+                  selectedDisplayMode === mode.name ? "ring-2 ring-white" : ""
+                }`}
+              >
+                <div className="text-center">
+                  <div className="text-2xl sm:text-3xl mb-1">{mode.emoji}</div>
+                  <h3 className="text-sm sm:text-lg font-bold mb-1">
+                    {mode.name}
+                  </h3>
+                  <p className="text-xs sm:text-sm opacity-90 hidden sm:block">
+                    {mode.description}
+                  </p>
+                  <p className="text-xs opacity-75 mt-1">
+                    {selectedDisplayMode === mode.name
+                      ? "Click to refresh"
+                      : "Click to select"}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <DisplayContent selectedMode={selectedDisplayMode} />
+        <DisplayContent
+          selectedMode={selectedDisplayMode}
+          refreshTrigger={refreshTrigger}
+        />
       </div>
 
       <style jsx>{`

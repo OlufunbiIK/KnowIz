@@ -11,19 +11,14 @@ class RateLimiter {
 
   async waitForSlot() {
     const now = Date.now();
-
     this.requests = this.requests.filter(
       (time) => now - time < this.timeWindow
     );
 
     if (this.requests.length >= this.maxRequests) {
-      const oldestRequest = Math.min(...this.requests);
-      const waitTime = this.timeWindow - (now - oldestRequest);
-
-      if (waitTime > 0) {
-        console.log(`Rate limiting: waiting ${waitTime}ms before next request`);
-        await new Promise((resolve) => setTimeout(resolve, waitTime));
-      }
+      const oldest = Math.min(...this.requests);
+      const wait = this.timeWindow - (now - oldest);
+      if (wait > 0) await new Promise((res) => setTimeout(res, wait));
     }
 
     this.requests.push(Date.now());
@@ -34,6 +29,7 @@ const rateLimiter = new RateLimiter();
 
 const CategoryContent = ({ selectedCategory }) => {
   const [data, setData] = useState(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const abortControllerRef = useRef(null);
@@ -46,52 +42,31 @@ const CategoryContent = ({ selectedCategory }) => {
   const fetchCategoryData = useCallback(
     async (retryCount = 0) => {
       if (!categoryObj || !selectedCategory) return;
-
-      if (data && lastFetchedCategory.current === selectedCategory) {
-        return;
-      }
+      if (data && lastFetchedCategory.current === selectedCategory) return;
 
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
 
       abortControllerRef.current = new AbortController();
-
       setLoading(true);
       setError(null);
 
       try {
         await rateLimiter.waitForSlot();
 
-        console.log(
-          `Fetching data for category: ${selectedCategory} (ID: ${categoryObj.id})`
-        );
-
         const response = await fetch(
           `https://opentdb.com/api.php?amount=10&category=${categoryObj.id}`,
           {
             signal: abortControllerRef.current.signal,
-            headers: {
-              Accept: "application/json",
-            },
+            headers: { Accept: "application/json" },
           }
         );
 
-        if (response.status === 429) {
-          if (retryCount < 2) {
-            const waitTime = Math.min(10000 * (retryCount + 1), 30000);
-            console.warn(
-              `Rate limited. Retrying in ${waitTime}ms... (attempt ${
-                retryCount + 1
-              })`
-            );
-            await new Promise((resolve) => setTimeout(resolve, waitTime));
-            return fetchCategoryData(retryCount + 1);
-          } else {
-            throw new Error(
-              "Rate limit exceeded. Please wait a few minutes before trying again."
-            );
-          }
+        if (response.status === 429 && retryCount < 2) {
+          const waitTime = Math.min(10000 * (retryCount + 1), 30000);
+          await new Promise((res) => setTimeout(res, waitTime));
+          return fetchCategoryData(retryCount + 1);
         }
 
         if (!response.ok) {
@@ -102,6 +77,7 @@ const CategoryContent = ({ selectedCategory }) => {
 
         if (result.response_code === 0) {
           setData(result.results || []);
+          setCurrentIndex(0);
           lastFetchedCategory.current = selectedCategory;
         } else {
           throw new Error(
@@ -113,12 +89,9 @@ const CategoryContent = ({ selectedCategory }) => {
           );
         }
       } catch (err) {
-        if (err.name === "AbortError") {
-          console.log("Request was cancelled");
-          return;
+        if (err.name !== "AbortError") {
+          setError(err.message || "Failed to fetch data");
         }
-        console.error("Fetch error:", err);
-        setError(err.message || "Failed to fetch data");
       } finally {
         setLoading(false);
       }
@@ -133,11 +106,17 @@ const CategoryContent = ({ selectedCategory }) => {
     }
 
     return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+      if (abortControllerRef.current) abortControllerRef.current.abort();
     };
   }, [selectedCategory, fetchCategoryData]);
+
+  const handleNext = () => {
+    if (currentIndex < data.length - 1) setCurrentIndex((prev) => prev + 1);
+  };
+
+  const handlePrev = () => {
+    if (currentIndex > 0) setCurrentIndex((prev) => prev - 1);
+  };
 
   if (!selectedCategory) {
     return (
@@ -146,6 +125,8 @@ const CategoryContent = ({ selectedCategory }) => {
       </div>
     );
   }
+
+  const current = data?.[currentIndex];
 
   return (
     <div className="p-6 bg-white rounded-lg shadow-sm mt-4">
@@ -170,12 +151,6 @@ const CategoryContent = ({ selectedCategory }) => {
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
           <p className="font-medium">Error:</p>
           <p>{error}</p>
-          {error.includes("Rate limit") && (
-            <p className="text-sm mt-2">
-              The API has rate limits. Please wait a few minutes before trying
-              again.
-            </p>
-          )}
         </div>
       )}
 
@@ -186,74 +161,74 @@ const CategoryContent = ({ selectedCategory }) => {
         </div>
       )}
 
-      {data && data.length > 0 && (
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-700">
-            Questions ({data.length}):
-          </h3>
-          {data.map((item, index) => (
-            <div
-              key={index}
-              className="p-4 bg-gray-50 rounded-lg border-l-4 border-blue-500 hover:bg-gray-100 transition-colors"
-            >
-              <div className="flex justify-between items-start mb-2">
-                <span className="text-sm font-medium text-blue-600">
-                  Question {index + 1}
-                </span>
-                <div className="flex gap-2 text-xs">
-                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded capitalize">
-                    {item.difficulty}
-                  </span>
-                  <span className="bg-green-100 text-green-800 px-2 py-1 rounded capitalize">
-                    {item.type}
-                  </span>
-                </div>
-              </div>
-              <p
-                className="font-medium text-gray-800 mb-3"
-                dangerouslySetInnerHTML={{ __html: item.question }}
-              />
+      {data && data.length > 0 && current && (
+        <div className="space-y-6">
+          <div className="text-center text-sm text-gray-600">
+            Question {currentIndex + 1} of {data.length}
+          </div>
 
-              <div className="mt-3 space-y-2">
-                {item.type === "multiple"
-                  ? [...item.incorrect_answers, item.correct_answer]
-                      .sort(() => Math.random() - 0.5)
-                      .map((option, optionIndex) => (
-                        <div key={optionIndex} className="flex items-center">
-                          <input
-                            type="radio"
-                            id={`q${index}_option${optionIndex}`}
-                            name={`question_${index}`}
-                            value={option}
-                            className="mr-3 text-blue-600 focus:ring-blue-500"
-                          />
-                          <label
-                            htmlFor={`q${index}_option${optionIndex}`}
-                            className="text-gray-700 cursor-pointer flex-1"
-                            dangerouslySetInnerHTML={{ __html: option }}
-                          />
-                        </div>
-                      ))
-                  : ["True", "False"].map((option, optionIndex) => (
-                      <div key={optionIndex} className="flex items-center">
-                        <input
-                          type="radio"
-                          id={`q${index}_option${optionIndex}`}
-                          name={`question_${index}`}
-                          value={option}
-                          className="mr-3 text-blue-600 focus:ring-blue-500"
-                        />
-                        <label
-                          htmlFor={`q${index}_option${optionIndex}`}
-                          className="text-gray-700 cursor-pointer flex-1"
-                        >
-                          {option}
-                        </label>
-                      </div>
-                    ))}
+          <div className="p-4 bg-gray-50 rounded-lg border-l-4 border-blue-500 hover:bg-gray-100 transition-colors">
+            <div className="flex justify-between items-start mb-2">
+              <span className="text-sm font-medium text-blue-600">
+                {current.category}
+              </span>
+              <div className="flex gap-2 text-xs">
+                <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded capitalize">
+                  {current.difficulty}
+                </span>
+                <span className="bg-green-100 text-green-800 px-2 py-1 rounded capitalize">
+                  {current.type}
+                </span>
               </div>
             </div>
-          ))}
+
+            <p
+              className="font-medium text-gray-800 mb-3"
+              dangerouslySetInnerHTML={{ __html: current.question }}
+            />
+
+            <div className="mt-3 space-y-2">
+              {(current.type === "multiple"
+                ? [...current.incorrect_answers, current.correct_answer].sort(
+                    () => Math.random() - 0.5
+                  )
+                : ["True", "False"]
+              ).map((option, i) => (
+                <div key={i} className="flex items-center">
+                  <input
+                    type="radio"
+                    id={`option_${currentIndex}_${i}`}
+                    name={`question_${currentIndex}`}
+                    value={option}
+                    className="mr-3 text-blue-600 focus:ring-blue-500"
+                  />
+                  <label
+                    htmlFor={`option_${currentIndex}_${i}`}
+                    className="text-gray-700 cursor-pointer flex-1"
+                    dangerouslySetInnerHTML={{ __html: option }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Navigation Buttons */}
+          <div className="flex justify-between gap-4 pt-2">
+            <button
+              onClick={handlePrev}
+              disabled={currentIndex === 0}
+              className="w-full py-2 px-4 bg-[#0c1125] text-white rounded disabled:opacity-50"
+            >
+              ← Previous
+            </button>
+            <button
+              onClick={handleNext}
+              disabled={currentIndex === data.length - 1}
+              className="w-full py-2 px-4 bg-[#0c1125] text-white rounded disabled:opacity-50"
+            >
+              Next →
+            </button>
+          </div>
         </div>
       )}
 
@@ -266,32 +241,103 @@ const CategoryContent = ({ selectedCategory }) => {
   );
 };
 
+// export const IntegratedCategoryPage = () => {
+//   const { name } = useParams();
+//   const navigate = useNavigate();
+//   const [category, setCategory] = useState("");
+//   const decodedName = decodeURIComponent(name || "");
+
+//   useEffect(() => {
+//     if (name && !category) {
+//       setCategory(decodedName);
+//     }
+//   }, [name, decodedName, category]);
+
+//   const handleCategoryChange = (e) => {
+//     const newCategory = e.target.value;
+//     setCategory(newCategory);
+//     navigate(`/category/${encodeURIComponent(newCategory)}`);
+//   };
+
+//   return (
+//     <div className="min-h-screen pt-[10rem] bg-gray-100 p-6">
+//       <div className="max-w-4xl mx-auto">
+//         <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">
+//           Quiz Categories
+//         </h1>
+
+//         <div className="mb-4">
+//           <label
+//             htmlFor="category-select"
+//             className="block text-sm font-medium text-gray-700 mb-2"
+//           >
+//             Select a Category:
+//           </label>
+//           <select
+//             id="category-select"
+//             onChange={handleCategoryChange}
+//             value={category}
+//             className="p-3 rounded-lg border border-gray-300 w-full bg-white shadow-sm focus:ring-2 focus:ring-[#00ba4a] focus:border-transparent"
+//           >
+//             <option value="" disabled>
+//               Choose a category...
+//             </option>
+//             {categories.map((option) => (
+//               <option key={option.id} value={option.categoryOption}>
+//                 {option.emoji} {option.categoryOption}
+//               </option>
+//             ))}
+//           </select>
+//         </div>
+
+//         <CategoryContent selectedCategory={category || decodedName} />
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default IntegratedCategoryPage;
+
 export const IntegratedCategoryPage = () => {
   const { name } = useParams();
   const navigate = useNavigate();
   const [category, setCategory] = useState("");
-  const decodedName = decodeURIComponent(name || "");
 
+  // Handle URL param and set category
   useEffect(() => {
-    if (name && !category) {
-      setCategory(decodedName);
+    if (name) {
+      const decoded = decodeURIComponent(name);
+      const matched = categories.find(
+        (cat) =>
+          cat.id === decoded.toLowerCase() ||
+          cat.categoryOption.toLowerCase() === decoded.toLowerCase()
+      );
+      if (matched) setCategory(matched.categoryOption);
     }
-  }, [name, decodedName, category]);
+  }, [name]);
 
-  const handleCategoryChange = (e) => {
-    const newCategory = e.target.value;
-    setCategory(newCategory);
-    navigate(`/category/${encodeURIComponent(newCategory)}`);
+  const handleChange = (e) => {
+    const selected = e.target.value;
+    setCategory(selected);
+    const matched = categories.find((cat) => cat.categoryOption === selected);
+    if (matched) {
+      navigate(`/category/${matched.id}`);
+    }
   };
+
+  const selectedCategoryObj = categories.find(
+    (cat) => cat.categoryOption === category
+  );
 
   return (
     <div className="min-h-screen pt-[10rem] bg-gray-100 p-6">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-3xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">
           Quiz Categories
         </h1>
 
-        <div className="mb-4">
+        {/* Dropdown */}
+        <div className="mb-6">
           <label
             htmlFor="category-select"
             className="block text-sm font-medium text-gray-700 mb-2"
@@ -300,22 +346,40 @@ export const IntegratedCategoryPage = () => {
           </label>
           <select
             id="category-select"
-            onChange={handleCategoryChange}
+            onChange={handleChange}
             value={category}
             className="p-3 rounded-lg border border-gray-300 w-full bg-white shadow-sm focus:ring-2 focus:ring-[#00ba4a] focus:border-transparent"
           >
             <option value="" disabled>
               Choose a category...
             </option>
-            {categories.map((option) => (
-              <option key={option.id} value={option.categoryOption}>
-                {option.emoji} {option.categoryOption}
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.categoryOption}>
+                {cat.emoji} {cat.categoryOption}
               </option>
             ))}
           </select>
         </div>
 
-        <CategoryContent selectedCategory={category || decodedName} />
+        {/* Selected category card only */}
+        {selectedCategoryObj && (
+          <div
+            className={`p-4 rounded-lg bg-gradient-to-r ${selectedCategoryObj.color} text-black shadow-lg mb-6`}
+          >
+            <div className="text-center">
+              <div className="text-4xl mb-2">{selectedCategoryObj.emoji}</div>
+              <h3 className="text-xl font-bold mb-1">
+                {selectedCategoryObj.categoryOption}
+              </h3>
+              <p className="text-sm opacity-90">
+                {selectedCategoryObj.description}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Main content */}
+        <CategoryContent selectedCategory={category} />
       </div>
     </div>
   );
