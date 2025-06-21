@@ -232,21 +232,23 @@ export const FlipCardsContent = ({ isActive, refreshTrigger }) => {
 export const MultipleChoiceContent = ({ isActive, refreshTrigger }) => {
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState([]);
-  const [score, setScore] = useState(null);
+  const [selectedAnswers, setSelectedAnswers] = useState({});
+  const [shuffledOptions, setShuffledOptions] = useState({});
+  const [showResults, setShowResults] = useState(false);
+  const [quizResults, setQuizResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const currentQuestion = questions[currentIndex];
-
-  // Memoize the shuffled answers to prevent re-shuffling on every render
-  const allAnswers = useMemo(() => {
-    if (!currentQuestion) return [];
-    return [
-      ...currentQuestion.incorrect_answers,
-      currentQuestion.correct_answer,
-    ].sort(() => Math.random() - 0.5);
-  }, [currentQuestion]);
+  // Function to shuffle options once when data is loaded
+  const shuffleOptionsForQuestions = useCallback((questions) => {
+    const shuffled = {};
+    questions.forEach((question, index) => {
+      const options = [...question.incorrect_answers, question.correct_answer];
+      const shuffledArray = [...options].sort(() => Math.random() - 0.5);
+      shuffled[index] = shuffledArray;
+    });
+    return shuffled;
+  }, []);
 
   const fetchQuestions = useCallback(
     async (retryCount = 0) => {
@@ -255,8 +257,10 @@ export const MultipleChoiceContent = ({ isActive, refreshTrigger }) => {
       setLoading(true);
       setError(null);
       setCurrentIndex(0);
-      setSelectedAnswers([]);
-      setScore(null);
+      setSelectedAnswers({});
+      setShuffledOptions({});
+      setShowResults(false);
+      setQuizResults(null);
 
       try {
         await rateLimiter.waitForSlot();
@@ -278,7 +282,9 @@ export const MultipleChoiceContent = ({ isActive, refreshTrigger }) => {
         const result = await response.json();
 
         if (result.response_code === 0) {
-          setQuestions(result.results || []);
+          const fetchedQuestions = result.results || [];
+          setQuestions(fetchedQuestions);
+          setShuffledOptions(shuffleOptionsForQuestions(fetchedQuestions));
         } else {
           throw new Error("Failed to fetch questions");
         }
@@ -288,7 +294,7 @@ export const MultipleChoiceContent = ({ isActive, refreshTrigger }) => {
         setLoading(false);
       }
     },
-    [isActive]
+    [isActive, shuffleOptionsForQuestions]
   );
 
   useEffect(() => {
@@ -297,27 +303,73 @@ export const MultipleChoiceContent = ({ isActive, refreshTrigger }) => {
     }
   }, [isActive, refreshTrigger, fetchQuestions]);
 
-  const handleRetakeQuiz = () => {
-    setScore(null);
-    setSelectedAnswers([]);
-    setCurrentIndex(0);
-    fetchQuestions();
+  const handleAnswerSelect = (questionIndex, answer) => {
+    setSelectedAnswers((prev) => ({
+      ...prev,
+      [questionIndex]: answer,
+    }));
   };
 
-  const handleAnswer = (answer) => {
-    setSelectedAnswers((prev) => [...prev, answer]);
-    if (currentIndex + 1 < questions.length) {
-      setCurrentIndex((prev) => prev + 1);
-    } else {
-      calculateScore([...selectedAnswers, answer]);
+  const handleNextQuestion = () => {
+    if (currentIndex < questions.length - 1) {
+      setCurrentIndex(currentIndex + 1);
     }
   };
 
-  const calculateScore = (answers) => {
-    const correct = questions.reduce((acc, q, idx) => {
-      return q.correct_answer === answers[idx] ? acc + 1 : acc;
-    }, 0);
-    setScore(correct);
+  const handlePreviousQuestion = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1);
+    }
+  };
+
+  const calculateResults = () => {
+    let correctCount = 0;
+    const results = questions.map((question, index) => {
+      const userAnswer = selectedAnswers[index];
+      const correctAnswer = question.correct_answer;
+      const isCorrect = userAnswer === correctAnswer;
+
+      if (isCorrect) correctCount++;
+
+      return {
+        question: question.question,
+        category: question.category,
+        difficulty: question.difficulty,
+        type: question.type,
+        correctAnswer,
+        userAnswer: userAnswer || "Not answered",
+        isCorrect,
+        options: shuffledOptions[index] || [],
+      };
+    });
+
+    const percentage = Math.round((correctCount / questions.length) * 100);
+
+    return {
+      totalQuestions: questions.length,
+      correctAnswers: correctCount,
+      wrongAnswers: questions.length - correctCount,
+      percentage,
+      results,
+    };
+  };
+
+  const handleSubmitQuiz = () => {
+    const results = calculateResults();
+    setQuizResults(results);
+    setShowResults(true);
+  };
+
+  const handleRetakeQuiz = () => {
+    setShowResults(false);
+    setQuizResults(null);
+    setCurrentIndex(0);
+    setSelectedAnswers({});
+    fetchQuestions();
+  };
+
+  const handleGoHome = () => {
+    window.location.href = "/quiz";
   };
 
   if (!isActive) return null;
@@ -347,78 +399,161 @@ export const MultipleChoiceContent = ({ isActive, refreshTrigger }) => {
     );
   }
 
-  if (score !== null) {
+  // Quiz Results Display
+  if (showResults && quizResults) {
     return (
-      <div className="text-center">
-        <h2 className="text-2xl font-bold mb-4 text-gray-800">
-          ✅ Score: {score} / {questions.length}
-        </h2>
-        <p className="text-xl mb-6">
-          {score >= 9
-            ? "🎉 Excellent!"
-            : score >= 7
-            ? "✅ Good Job!"
-            : score >= 5
-            ? "😐 Fair"
-            : "❌ Needs Improvement"}
-        </p>
+      <div className="space-y-6">
+        {/* Results Summary */}
+        <div className="bg-white rounded-lg p-6 shadow-sm border">
+          <div className="text-center mb-6">
+            <h2 className="text-3xl font-bold text-gray-800 mb-2">
+              Quiz Results
+            </h2>
+            <div
+              className={`text-6xl font-bold mb-4 ${
+                quizResults.percentage >= 80
+                  ? "text-green-600"
+                  : quizResults.percentage >= 60
+                  ? "text-yellow-600"
+                  : "text-red-600"
+              }`}
+            >
+              {quizResults.percentage}%
+            </div>
+            <p className="text-lg text-gray-600">
+              You scored {quizResults.correctAnswers} out of{" "}
+              {quizResults.totalQuestions} questions correctly
+            </p>
+          </div>
 
-        <div className="space-y-4 mb-6">
-          {questions.map((q, index) => {
-            const isCorrect = q.correct_answer === selectedAnswers[index];
-            return (
-              <div
-                key={index}
-                className={`p-4 rounded shadow ${
-                  isCorrect ? "bg-green-100" : "bg-red-100"
-                }`}
-              >
-                <p
-                  className="font-semibold mb-1"
-                  dangerouslySetInnerHTML={{
-                    __html: `${index + 1}. ${q.question}`,
-                  }}
-                ></p>
-
-                {isCorrect ? (
-                  <p>
-                    ✅ <span className="font-medium">Correct:</span>{" "}
-                    <span
-                      className="text-green-700"
-                      dangerouslySetInnerHTML={{ __html: q.correct_answer }}
-                    ></span>
-                  </p>
-                ) : (
-                  <>
-                    <p>
-                      ❌ <span className="font-medium">Your Answer:</span>{" "}
-                      <span
-                        className="text-red-700"
-                        dangerouslySetInnerHTML={{
-                          __html: selectedAnswers[index],
-                        }}
-                      ></span>
-                    </p>
-                    <p>
-                      ✅ <span className="font-medium">Correct Answer:</span>{" "}
-                      <span
-                        className="text-green-700"
-                        dangerouslySetInnerHTML={{ __html: q.correct_answer }}
-                      ></span>
-                    </p>
-                  </>
-                )}
+          {/* Score Breakdown */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">
+                {quizResults.correctAnswers}
               </div>
-            );
-          })}
+              <div className="text-sm text-green-700">Correct</div>
+            </div>
+            <div className="text-center p-4 bg-red-50 rounded-lg">
+              <div className="text-2xl font-bold text-red-600">
+                {quizResults.wrongAnswers}
+              </div>
+              <div className="text-sm text-red-700">Wrong</div>
+            </div>
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">
+                {quizResults.totalQuestions}
+              </div>
+              <div className="text-sm text-blue-700">Total</div>
+            </div>
+          </div>
+
+          {/* Performance Message */}
+          <div className="text-center p-4 rounded-lg mb-6 bg-gray-50">
+            {quizResults.percentage >= 80 && (
+              <p className="text-green-700 font-medium">
+                🎉 Excellent work! You have a great understanding of this topic.
+              </p>
+            )}
+            {quizResults.percentage >= 60 && quizResults.percentage < 80 && (
+              <p className="text-yellow-700 font-medium">
+                👍 Good job! You're on the right track, keep practicing.
+              </p>
+            )}
+            {quizResults.percentage < 60 && (
+              <p className="text-red-700 font-medium">
+                💪 Keep learning! Review the topics and try again.
+              </p>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              onClick={handleRetakeQuiz}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              Retake Quiz
+            </button>
+            <button
+              onClick={handleGoHome}
+              className="px-6 py-3 bg-[#0c1125] text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
+            >
+              Go Home
+            </button>
+          </div>
         </div>
 
-        <button
-          onClick={handleRetakeQuiz}
-          className="px-6 py-3 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          🔁 Retake Quiz
-        </button>
+        {/* Detailed Results */}
+        <div className="bg-white rounded-lg p-6 shadow-sm border">
+          <h3 className="text-xl font-bold text-gray-800 mb-4">
+            Question Review
+          </h3>
+          <div className="space-y-4">
+            {quizResults.results.map((result, index) => (
+              <div
+                key={index}
+                className={`p-4 rounded-lg border-l-4 ${
+                  result.isCorrect
+                    ? "bg-green-50 border-green-500"
+                    : "bg-red-50 border-red-500"
+                }`}
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-600">
+                    Question {index + 1}
+                  </span>
+                  <div className="flex gap-2">
+                    <span
+                      className={`px-2 py-1 rounded text-xs font-medium ${
+                        result.isCorrect
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {result.isCorrect ? "✓ Correct" : "✗ Wrong"}
+                    </span>
+                    <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs capitalize">
+                      {result.category}
+                    </span>
+                  </div>
+                </div>
+
+                <p
+                  className="font-medium text-gray-800 mb-3"
+                  dangerouslySetInnerHTML={{ __html: result.question }}
+                />
+
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-600">
+                      Your answer:
+                    </span>
+                    <span
+                      className={`font-medium ${
+                        result.isCorrect ? "text-green-700" : "text-red-700"
+                      }`}
+                      dangerouslySetInnerHTML={{ __html: result.userAnswer }}
+                    />
+                  </div>
+                  {!result.isCorrect && (
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-600">
+                        Correct answer:
+                      </span>
+                      <span
+                        className="font-medium text-green-700"
+                        dangerouslySetInnerHTML={{
+                          __html: result.correctAnswer,
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -431,31 +566,127 @@ export const MultipleChoiceContent = ({ isActive, refreshTrigger }) => {
     );
   }
 
+  const currentQuestion = questions[currentIndex];
   const optionLabels = ["A", "B", "C", "D"];
 
   return (
     <div className="space-y-6">
-      <div className="text-center">
-        <div className="text-xl font-bold text-gray-800 mb-4">
+      {/* Question Progress */}
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-lg font-semibold text-gray-700">
           Question {currentIndex + 1} of {questions.length}
+        </h3>
+        <div className="flex items-center gap-2">
+          <div className="w-32 bg-gray-200 rounded-full h-2">
+            <div
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              style={{
+                width: `${((currentIndex + 1) / questions.length) * 100}%`,
+              }}
+            ></div>
+          </div>
+          <span className="text-sm text-gray-600">
+            {Math.round(((currentIndex + 1) / questions.length) * 100)}%
+          </span>
         </div>
       </div>
 
-      <div className="bg-blue-50 p-6 rounded-lg space-y-4">
+      {/* Current Question */}
+      <div className="bg-blue-50 p-6 rounded-lg border-l-4 border-blue-400">
+        <div className="flex justify-between items-start mb-3">
+          <span className="text-sm font-medium text-gray-600">
+            Question {currentIndex + 1}
+          </span>
+          <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs capitalize">
+            {currentQuestion.category}
+          </span>
+        </div>
+
         <h3
-          className="text-lg font-semibold text-gray-800"
+          className="text-lg font-semibold text-gray-800 mb-4"
           dangerouslySetInnerHTML={{ __html: currentQuestion.question }}
-        ></h3>
-        {allAnswers.map((ans, i) => (
+        />
+
+        {/* Answer Options */}
+        <div className="space-y-3">
+          {shuffledOptions[currentIndex]?.map((option, optionIndex) => (
+            <div
+              key={optionIndex}
+              className={`flex items-center p-3 rounded border transition-colors cursor-pointer ${
+                selectedAnswers[currentIndex] === option
+                  ? "bg-blue-100 border-blue-300"
+                  : "bg-white hover:bg-gray-50"
+              }`}
+              onClick={() => handleAnswerSelect(currentIndex, option)}
+            >
+              <input
+                type="radio"
+                id={`q${currentIndex}_option${optionIndex}`}
+                name={`question_${currentIndex}`}
+                value={option}
+                checked={selectedAnswers[currentIndex] === option}
+                onChange={() => handleAnswerSelect(currentIndex, option)}
+                className="mr-3 text-blue-600 focus:ring-blue-500"
+              />
+              <label
+                htmlFor={`q${currentIndex}_option${optionIndex}`}
+                className="text-gray-700 cursor-pointer flex-1 font-medium"
+              >
+                <strong className="mr-2 text-blue-600">
+                  {optionLabels[optionIndex]}.
+                </strong>
+                <span dangerouslySetInnerHTML={{ __html: option }} />
+              </label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <div className="flex justify-between items-center mt-6">
+        <button
+          onClick={handlePreviousQuestion}
+          disabled={currentIndex === 0}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          Previous
+        </button>
+
+        {/* Numbered Navigation Buttons */}
+        <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto max-w-xs sm:max-w-none">
+          {questions.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => setCurrentIndex(index)}
+              className={`min-w-[28px] h-7 sm:w-8 sm:h-8 rounded-full text-xs sm:text-sm font-medium transition-colors hidden md:flex flex-shrink-0 ${
+                index === currentIndex
+                  ? "bg-blue-600 text-white"
+                  : selectedAnswers[index]
+                  ? "bg-green-200 text-green-800"
+                  : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+              }`}
+            >
+              {index + 1}
+            </button>
+          ))}
+        </div>
+
+        {currentIndex === questions.length - 1 ? (
           <button
-            key={i}
-            onClick={() => handleAnswer(ans)}
-            className="block w-full bg-white hover:bg-blue-100 text-left px-4 py-3 rounded border border-gray-200 transition-colors"
+            onClick={handleSubmitQuiz}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
           >
-            <strong className="mr-2 text-blue-600">{optionLabels[i]}.</strong>
-            <span dangerouslySetInnerHTML={{ __html: ans }}></span>
+            ✅ Submit Quiz
           </button>
-        ))}
+        ) : (
+          <button
+            onClick={handleNextQuestion}
+            disabled={currentIndex === questions.length - 1}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
+          >
+            Next
+          </button>
+        )}
       </div>
     </div>
   );
@@ -465,16 +696,11 @@ export const MultipleChoiceContent = ({ isActive, refreshTrigger }) => {
 export const TrueFalseContent = ({ isActive, refreshTrigger }) => {
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState([]);
-  const [score, setScore] = useState(null);
+  const [selectedAnswers, setSelectedAnswers] = useState({});
+  const [showResults, setShowResults] = useState(false);
+  const [quizResults, setQuizResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
-  // Memoize the current question to prevent unnecessary re-renders
-  const current = useMemo(
-    () => questions[currentIndex],
-    [questions, currentIndex]
-  );
 
   const fetchQuestions = useCallback(
     async (retryCount = 0) => {
@@ -483,8 +709,9 @@ export const TrueFalseContent = ({ isActive, refreshTrigger }) => {
       setLoading(true);
       setError(null);
       setCurrentIndex(0);
-      setSelectedAnswers([]);
-      setScore(null);
+      setSelectedAnswers({});
+      setShowResults(false);
+      setQuizResults(null);
 
       try {
         await rateLimiter.waitForSlot();
@@ -525,29 +752,72 @@ export const TrueFalseContent = ({ isActive, refreshTrigger }) => {
     }
   }, [isActive, refreshTrigger, fetchQuestions]);
 
-  const handleRetake = () => {
-    setCurrentIndex(0);
-    setSelectedAnswers([]);
-    setScore(null);
-    fetchQuestions();
+  const handleAnswerSelect = (questionIndex, answer) => {
+    setSelectedAnswers((prev) => ({
+      ...prev,
+      [questionIndex]: answer,
+    }));
   };
 
-  const handleAnswer = (answer) => {
-    const newAnswers = [...selectedAnswers, answer];
-    setSelectedAnswers(newAnswers);
-
-    if (currentIndex + 1 < questions.length) {
-      setCurrentIndex((prev) => prev + 1);
-    } else {
-      calculateScore(newAnswers);
+  const handleNextQuestion = () => {
+    if (currentIndex < questions.length - 1) {
+      setCurrentIndex(currentIndex + 1);
     }
   };
 
-  const calculateScore = (answers) => {
-    const correct = questions.reduce((acc, q, idx) => {
-      return q.correct_answer === answers[idx] ? acc + 1 : acc;
-    }, 0);
-    setScore(correct);
+  const handlePreviousQuestion = () => {
+    if (currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1);
+    }
+  };
+
+  const calculateResults = () => {
+    let correctCount = 0;
+    const results = questions.map((question, index) => {
+      const userAnswer = selectedAnswers[index];
+      const correctAnswer = question.correct_answer;
+      const isCorrect = userAnswer === correctAnswer;
+
+      if (isCorrect) correctCount++;
+
+      return {
+        question: question.question,
+        category: question.category,
+        difficulty: question.difficulty,
+        type: question.type,
+        correctAnswer,
+        userAnswer: userAnswer || "Not answered",
+        isCorrect,
+      };
+    });
+
+    const percentage = Math.round((correctCount / questions.length) * 100);
+
+    return {
+      totalQuestions: questions.length,
+      correctAnswers: correctCount,
+      wrongAnswers: questions.length - correctCount,
+      percentage,
+      results,
+    };
+  };
+
+  const handleSubmitQuiz = () => {
+    const results = calculateResults();
+    setQuizResults(results);
+    setShowResults(true);
+  };
+
+  const handleRetakeQuiz = () => {
+    setShowResults(false);
+    setQuizResults(null);
+    setCurrentIndex(0);
+    setSelectedAnswers({});
+    fetchQuestions();
+  };
+
+  const handleGoHome = () => {
+    window.location.href = "/quiz";
   };
 
   if (!isActive) return null;
@@ -568,7 +838,7 @@ export const TrueFalseContent = ({ isActive, refreshTrigger }) => {
       <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
         <p>Error: {error}</p>
         <button
-          onClick={handleRetake}
+          onClick={() => fetchQuestions()}
           className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
         >
           Try Again
@@ -577,59 +847,165 @@ export const TrueFalseContent = ({ isActive, refreshTrigger }) => {
     );
   }
 
-  if (score !== null) {
+  // Quiz Results Display
+  if (showResults && quizResults) {
     return (
-      <div className="text-center">
-        <h2 className="text-2xl font-bold mb-4 text-gray-800">
-          ✅ Score: {score} / {questions.length}
-        </h2>
+      <div className="space-y-6">
+        {/* Results Summary */}
+        <div className="bg-white rounded-lg p-6 shadow-sm border">
+          <div className="text-center mb-6">
+            <h2 className="text-3xl font-bold text-gray-800 mb-2">
+              Quiz Results
+            </h2>
+            <div
+              className={`text-6xl font-bold mb-4 ${
+                quizResults.percentage >= 80
+                  ? "text-green-600"
+                  : quizResults.percentage >= 60
+                  ? "text-yellow-600"
+                  : "text-red-600"
+              }`}
+            >
+              {quizResults.percentage}%
+            </div>
+            <p className="text-lg text-gray-600">
+              You scored {quizResults.correctAnswers} out of{" "}
+              {quizResults.totalQuestions} questions correctly
+            </p>
+          </div>
 
-        <p className="text-xl mb-6">
-          {score >= 9
-            ? "🎉 Excellent!"
-            : score >= 7
-            ? "✅ Good Job!"
-            : score >= 5
-            ? "😐 Fair"
-            : "❌ Needs Improvement"}
-        </p>
-
-        <div className="space-y-4 mb-6">
-          {questions.map((q, index) => {
-            const isCorrect = q.correct_answer === selectedAnswers[index];
-            return (
-              <div
-                key={index}
-                className={`p-4 rounded shadow ${
-                  isCorrect ? "bg-green-100" : "bg-red-100"
-                }`}
-              >
-                <p
-                  className="font-semibold"
-                  dangerouslySetInnerHTML={{ __html: q.question }}
-                ></p>
-                <p>
-                  ✅ Correct: <strong>{q.correct_answer}</strong>
-                </p>
-                {!isCorrect && (
-                  <p>
-                    ❌ You chose:{" "}
-                    <strong className="text-red-600">
-                      {selectedAnswers[index]}
-                    </strong>
-                  </p>
-                )}
+          {/* Score Breakdown */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">
+                {quizResults.correctAnswers}
               </div>
-            );
-          })}
+              <div className="text-sm text-green-700">Correct</div>
+            </div>
+            <div className="text-center p-4 bg-red-50 rounded-lg">
+              <div className="text-2xl font-bold text-red-600">
+                {quizResults.wrongAnswers}
+              </div>
+              <div className="text-sm text-red-700">Wrong</div>
+            </div>
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">
+                {quizResults.totalQuestions}
+              </div>
+              <div className="text-sm text-blue-700">Total</div>
+            </div>
+          </div>
+
+          {/* Performance Message */}
+          <div className="text-center p-4 rounded-lg mb-6 bg-gray-50">
+            {quizResults.percentage >= 80 && (
+              <p className="text-green-700 font-medium">
+                🎉 Excellent work! You have a great understanding of this topic.
+              </p>
+            )}
+            {quizResults.percentage >= 60 && quizResults.percentage < 80 && (
+              <p className="text-yellow-700 font-medium">
+                👍 Good job! You're on the right track, keep practicing.
+              </p>
+            )}
+            {quizResults.percentage < 60 && (
+              <p className="text-red-700 font-medium">
+                💪 Keep learning! Review the topics and try again.
+              </p>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              onClick={handleRetakeQuiz}
+              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+            >
+              🔁 Retake Quiz
+            </button>
+            <button
+              onClick={handleGoHome}
+              className="px-6 py-3 bg-[#0c1125] text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
+            >
+              Go Home
+            </button>
+          </div>
         </div>
 
-        <button
-          onClick={handleRetake}
-          className="px-6 py-3 bg-green-600 text-white rounded hover:bg-green-700"
-        >
-          🔁 Retake Quiz
-        </button>
+        {/* Detailed Results */}
+        <div className="bg-white rounded-lg p-6 shadow-sm border">
+          <h3 className="text-xl font-bold text-gray-800 mb-4">
+            Question Review
+          </h3>
+          <div className="space-y-4">
+            {quizResults.results.map((result, index) => (
+              <div
+                key={index}
+                className={`p-4 rounded-lg border-l-4 ${
+                  result.isCorrect
+                    ? "bg-green-50 border-green-500"
+                    : "bg-red-50 border-red-500"
+                }`}
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-600">
+                    Question {index + 1}
+                  </span>
+                  <div className="flex gap-2">
+                    <span
+                      className={`px-2 py-1 rounded text-xs font-medium ${
+                        result.isCorrect
+                          ? "bg-green-100 text-green-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {result.isCorrect ? "✓ Correct" : "✗ Wrong"}
+                    </span>
+                    <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs capitalize">
+                      {result.category}
+                    </span>
+                  </div>
+                </div>
+
+                <p
+                  className="font-medium text-gray-800 mb-3"
+                  dangerouslySetInnerHTML={{ __html: result.question }}
+                />
+
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-600">
+                      Your answer:
+                    </span>
+                    <span
+                      className={`font-medium ${
+                        result.isCorrect ? "text-green-700" : "text-red-700"
+                      }`}
+                    >
+                      {result.userAnswer === "True"
+                        ? "✅ True"
+                        : result.userAnswer === "False"
+                        ? "❌ False"
+                        : result.userAnswer}
+                    </span>
+                  </div>
+                  {!result.isCorrect && (
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-600">
+                        Correct answer:
+                      </span>
+                      <span className="font-medium text-green-700">
+                        {result.correctAnswer === "True"
+                          ? "✅ True"
+                          : "❌ False"}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -642,34 +1018,145 @@ export const TrueFalseContent = ({ isActive, refreshTrigger }) => {
     );
   }
 
+  const currentQuestion = questions[currentIndex];
+
   return (
     <div className="space-y-6">
-      <div className="text-center">
-        <h2 className="text-xl font-bold text-gray-800 mb-4">
+      {/* Question Progress */}
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-lg font-semibold text-gray-700">
           Question {currentIndex + 1} of {questions.length}
-        </h2>
+        </h3>
+        <div className="flex items-center gap-2">
+          <div className="w-32 bg-gray-200 rounded-full h-2">
+            <div
+              className="bg-green-600 h-2 rounded-full transition-all duration-300"
+              style={{
+                width: `${((currentIndex + 1) / questions.length) * 100}%`,
+              }}
+            ></div>
+          </div>
+          <span className="text-sm text-gray-600">
+            {Math.round(((currentIndex + 1) / questions.length) * 100)}%
+          </span>
+        </div>
       </div>
 
-      <div className="bg-green-50 p-6 rounded-lg space-y-6">
-        <p
-          className="text-lg font-medium text-gray-800"
-          dangerouslySetInnerHTML={{ __html: current.question }}
-        ></p>
-
-        <div className="flex flex-col md:flex-row justify-center gap-6">
-          <button
-            onClick={() => handleAnswer("True")}
-            className="bg-green-500 text-white px-8 py-3 rounded-lg hover:bg-green-600 font-medium"
-          >
-            ✅ True
-          </button>
-          <button
-            onClick={() => handleAnswer("False")}
-            className="bg-red-500 text-white px-8 py-3 rounded-lg hover:bg-red-600 font-medium"
-          >
-            ❌ False
-          </button>
+      {/* Current Question */}
+      <div className="bg-green-50 p-6 rounded-lg border-l-4 border-green-400">
+        <div className="flex justify-between items-start mb-3">
+          <span className="text-sm font-medium text-gray-600">
+            Question {currentIndex + 1}
+          </span>
+          <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs capitalize">
+            {currentQuestion.category}
+          </span>
         </div>
+
+        <h3
+          className="text-lg font-semibold text-gray-800 mb-6"
+          dangerouslySetInnerHTML={{ __html: currentQuestion.question }}
+        />
+
+        {/* True/False Options */}
+        <div className="flex flex-col md:flex-row justify-center gap-6">
+          <div
+            className={`flex items-center p-4 rounded-lg border-2 transition-colors cursor-pointer ${
+              selectedAnswers[currentIndex] === "True"
+                ? "bg-green-100 border-green-300"
+                : "bg-white hover:bg-gray-50 border-gray-200"
+            }`}
+            onClick={() => handleAnswerSelect(currentIndex, "True")}
+          >
+            <input
+              type="radio"
+              id={`q${currentIndex}_true`}
+              name={`question_${currentIndex}`}
+              value="True"
+              checked={selectedAnswers[currentIndex] === "True"}
+              onChange={() => handleAnswerSelect(currentIndex, "True")}
+              className="mr-3 text-green-600 focus:ring-green-500"
+            />
+            <label
+              htmlFor={`q${currentIndex}_true`}
+              className="text-gray-700 cursor-pointer font-medium"
+            >
+              ✅ True
+            </label>
+          </div>
+
+          <div
+            className={`flex items-center p-4 rounded-lg border-2 transition-colors cursor-pointer ${
+              selectedAnswers[currentIndex] === "False"
+                ? "bg-red-100 border-red-300"
+                : "bg-white hover:bg-gray-50 border-gray-200"
+            }`}
+            onClick={() => handleAnswerSelect(currentIndex, "False")}
+          >
+            <input
+              type="radio"
+              id={`q${currentIndex}_false`}
+              name={`question_${currentIndex}`}
+              value="False"
+              checked={selectedAnswers[currentIndex] === "False"}
+              onChange={() => handleAnswerSelect(currentIndex, "False")}
+              className="mr-3 text-red-600 focus:ring-red-500"
+            />
+            <label
+              htmlFor={`q${currentIndex}_false`}
+              className="text-gray-700 cursor-pointer font-medium"
+            >
+              ❌ False
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <div className="flex justify-between items-center mt-6">
+        <button
+          onClick={handlePreviousQuestion}
+          disabled={currentIndex === 0}
+          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          Previous
+        </button>
+
+        {/* Numbered Navigation Buttons */}
+        <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto max-w-xs sm:max-w-none">
+          {questions.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => setCurrentIndex(index)}
+              className={`min-w-[28px] h-7 sm:w-8 sm:h-8 rounded-full text-xs sm:text-sm font-medium transition-colors hidden md:flex flex-shrink-0 ${
+                index === currentIndex
+                  ? "bg-green-600 text-white"
+                  : selectedAnswers[index]
+                  ? "bg-green-200 text-green-800"
+                  : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+              }`}
+            >
+              {index + 1}
+            </button>
+          ))}
+        </div>
+
+        {currentIndex === questions.length - 1 ? (
+          <button
+            onClick={handleSubmitQuiz}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
+          >
+            ✅ Submit Quiz
+          </button>
+        ) : (
+          <button
+            onClick={handleNextQuestion}
+            disabled={currentIndex === questions.length - 1}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-700 transition-colors"
+          >
+            Next
+          </button>
+        )}
       </div>
     </div>
   );
