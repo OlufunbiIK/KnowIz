@@ -3,10 +3,12 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Menu, X } from "lucide-react"; // Optional: use any icon lib you prefer
 import Button from "../ui/Button";
+import { useNavigate } from "react-router-dom";
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
+  const navigate = useNavigate();
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -30,8 +32,14 @@ export default function Header() {
   return (
     <header className="bg-[#0a0a23] bg-opacity-90 py-5 px-4 shadow-lg fixed top-0 left-0 w-full z-50">
       <div className="max-w-7xl mx-auto flex justify-between items-center">
-        <h1 className="text-[#ffffffd5] text-3xl md:text-4xl font-extrabold tracking-wider">
-          KNOW<span className="text-[#00ba4a]">IZ</span> 🤔
+        <h1
+          onClick={() => navigate("/")}
+          className="text-[#ffffffd5] text-3xl md:text-4xl font-extrabold tracking-wider cursor-pointer"
+        >
+          KNOW<span className="text-[#00ba4a]">IZ</span>{" "}
+          <span role="img" aria-label="thinking">
+            🤔
+          </span>
         </h1>
 
         {/* Desktop nav */}
