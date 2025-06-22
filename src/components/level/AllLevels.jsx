@@ -600,7 +600,7 @@ const DifficultyContent = ({ selectedDifficulty }) => {
             </button>
 
             {/* Numbered Navigation Buttons */}
-            <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto max-w-xs sm:max-w-none">
+            <div className="hidden md:flex items-center gap-1 sm:gap-2 overflow-x-auto max-w-xs sm:max-w-none">
               {data.map((_, index) => (
                 <button
                   key={index}

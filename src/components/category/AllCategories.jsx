@@ -419,7 +419,7 @@ const CategoryContent = ({ selectedCategory }) => {
             fetchCategoryData();
           }}
           disabled={loading}
-          className="mb-4 bg-gradient-to-r from-[#00ba4a] to-[#00e6b5] text-white rounded-lg px-6 py-4 disabled:opacity-50 hover:opacity-90 transition-opacity"
+          className="mb-4 bg-gradient-to-r from-[#00ba4a] to-[#00e6b5] text-white rounded-lg px-6 py-2 disabled:opacity-50 hover:opacity-90 transition-opacity"
         >
           {loading ? "Loading..." : `Load ${selectedCategory} Questions`}
         </button>
@@ -437,7 +437,7 @@ const CategoryContent = ({ selectedCategory }) => {
   const optionLabels = ["A", "B", "C", "D"];
 
   return (
-    <div className="p-6 bg-white rounded-lg shadow-sm mt-4 space-y-6">
+    <div className="p-6 bg-white rounded-lg shadow-sm mt-4 space-y-2 md:space-y-6">
       <div className="flex items-center gap-3 mb-4">
         <span className="text-3xl">{categoryObj?.emoji}</span>
         <h2 className="text-2xl font-bold text-gray-800">{selectedCategory}</h2>
@@ -602,7 +602,7 @@ export const IntegratedCategoryPage = () => {
   );
 
   return (
-    <div className="min-h-screen pt-[10rem] bg-gray-100 p-6">
+    <div className="min-h-screen pt-[10rem] bg-gray-100 p-2">
       <div className="max-w-3xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-800 mb-6 text-center">
           Quiz Categories

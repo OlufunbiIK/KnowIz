@@ -1,11 +1,31 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Menu, X } from "lucide-react"; // Optional: use any icon lib you prefer
 import Button from "../ui/Button";
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    }
+
+    // Only add the event listener when menu is open
+    if (menuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    // Cleanup the event listener
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [menuOpen]);
 
   return (
     <header className="bg-[#0a0a23] bg-opacity-90 py-5 px-4 shadow-lg fixed top-0 left-0 w-full z-50">
@@ -34,7 +54,7 @@ export default function Header() {
 
       {/* Mobile dropdown menu */}
       {menuOpen && (
-        <div className="md:hidden mt-2 px-4">
+        <div ref={menuRef} className="md:hidden mt-2 px-4">
           <div className="bg-[#0a0a23] bg-opacity-95 rounded-md p-4 shadow-md space-y-2">
             <div className="flex justify-center items-center">
               <Button />

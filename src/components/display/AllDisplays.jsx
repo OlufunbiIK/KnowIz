@@ -165,7 +165,7 @@ export const FlipCardsContent = ({ isActive, refreshTrigger }) => {
           }`}
         >
           {/* Front of card */}
-          <div className="absolute inset-0 w-full h-full backface-hidden bg-gradient-to-r from-purple-400 to-purple-600 rounded-lg p-6 flex items-center justify-center text-white shadow-lg">
+          <div className="absolute inset-0 w-full h-full backface-hidden bg-gradient-to-r from-purple-400 to-purple-600 rounded-lg p-2 md:p-6 flex items-center justify-center text-white shadow-lg">
             <div className="text-center">
               <h3 className="text-lg font-semibold mb-2">Question</h3>
               <p
@@ -1237,7 +1237,7 @@ export const IntegratedDisplayPage = ({ selectedMode: propMode }) => {
   };
 
   return (
-    <div className="p-2 sm:p-4 lg:p-6">
+    <div className="p-2 lg:p-6">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800 mb-4 text-center">
           Quiz Display Modes
@@ -1273,7 +1273,7 @@ export const IntegratedDisplayPage = ({ selectedMode: propMode }) => {
                     <div
                       key={mode.id}
                       onClick={() => handleCardClick(mode)}
-                      className={`p-3 sm:p-4 rounded-lg cursor-pointer transition-all duration-200 bg-gradient-to-r ${mode.color} text-white shadow-lg ring-2 ring-white hover:scale-105`}
+                      className={`p-2 sm:p-4 rounded-lg cursor-pointer transition-all duration-200 bg-gradient-to-r ${mode.color} text-white shadow-lg ring-2 ring-white hover:scale-105`}
                     >
                       <div className="text-center">
                         <div className="text-2xl sm:text-3xl mb-1">
@@ -1301,7 +1301,7 @@ export const IntegratedDisplayPage = ({ selectedMode: propMode }) => {
               <div
                 key={mode.id}
                 onClick={() => handleCardClick(mode)}
-                className={`p-3 sm:p-4 rounded-lg cursor-pointer transition-all duration-200 bg-gradient-to-r ${
+                className={`p-2 md:p-4 rounded-lg cursor-pointer transition-all duration-200 bg-gradient-to-r ${
                   mode.color
                 } text-white shadow-lg hover:scale-105 ${
                   selectedDisplayMode === mode.name ? "ring-2 ring-white" : ""

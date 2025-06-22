@@ -42,7 +42,7 @@ export default function Intro() {
       <div className="absolute inset-0 bg-black bg-opacity-60 z-0"></div>
 
       {/* Foreground Content */}
-      <div className="relative z-10 flex items-center justify-center min-h-screen px-4 py-12">
+      <div className="relative z-10 flex items-center justify-center min-h-screen px-2 md:px-4 py-12">
         <div className="w-full sm:max-w-lg md:max-w-2xl lg:max-w-3xl bg-white bg-opacity-90 rounded-tl-sm rounded-tr-sm rounded-bl-sm rounded-br-3xl shadow-2xl px-4 py-6 sm:px-6 sm:py-8 md:px-10 md:py-12 text-center space-y-4 sm:space-y-6">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-800">
             Welcome to KnowIz 🎯
