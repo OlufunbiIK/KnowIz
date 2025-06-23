@@ -653,22 +653,24 @@ export const MultipleChoiceContent = ({ isActive, refreshTrigger }) => {
         </button>
 
         {/* Numbered Navigation Buttons */}
-        <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto max-w-xs sm:max-w-none">
-          {questions.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => setCurrentIndex(index)}
-              className={`min-w-[28px] h-7 sm:w-8 sm:h-8 rounded-full text-xs sm:text-sm font-medium transition-colors hidden md:flex flex-shrink-0 ${
-                index === currentIndex
-                  ? "bg-blue-600 text-white"
-                  : selectedAnswers[index]
-                  ? "bg-green-200 text-green-800"
-                  : "bg-gray-200 text-gray-600 hover:bg-gray-300"
-              }`}
-            >
-              {index + 1}
-            </button>
-          ))}
+        <div className="flex justify-center md:justify-center items-center gap-1 sm:gap-2 overflow-x-auto max-w-xs sm:max-w-none w-full">
+          <div className="flex justify-center items-center gap-1 sm:gap-2">
+            {questions.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setCurrentIndex(index)}
+                className={`min-w-[28px] h-7 sm:w-8 sm:h-8 rounded-full text-xs sm:text-sm font-medium justify-center items-center transition-colors hidden md:flex flex-shrink-0 ${
+                  index === currentIndex
+                    ? "bg-blue-600 text-white"
+                    : selectedAnswers[index]
+                    ? "bg-green-200 text-green-800"
+                    : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                }`}
+              >
+                {index + 1}
+              </button>
+            ))}
+          </div>
         </div>
 
         {currentIndex === questions.length - 1 ? (
@@ -1061,53 +1063,25 @@ export const TrueFalseContent = ({ isActive, refreshTrigger }) => {
         {/* True/False Options */}
         <div className="flex flex-col md:flex-row justify-center gap-6">
           <div
-            className={`flex items-center p-4 rounded-lg border-2 transition-colors cursor-pointer ${
+            className={`flex items-center justify-center w-full md:w-40 p-4 rounded-lg border-2 font-semibold text-lg transition-colors cursor-pointer ${
               selectedAnswers[currentIndex] === "True"
-                ? "bg-green-100 border-green-300"
-                : "bg-white hover:bg-gray-50 border-gray-200"
+                ? "bg-green-600 text-white border-green-600"
+                : "bg-white text-gray-700 hover:bg-gray-100 border-gray-300"
             }`}
             onClick={() => handleAnswerSelect(currentIndex, "True")}
           >
-            <input
-              type="radio"
-              id={`q${currentIndex}_true`}
-              name={`question_${currentIndex}`}
-              value="True"
-              checked={selectedAnswers[currentIndex] === "True"}
-              onChange={() => handleAnswerSelect(currentIndex, "True")}
-              className="mr-3 text-green-600 focus:ring-green-500"
-            />
-            <label
-              htmlFor={`q${currentIndex}_true`}
-              className="text-gray-700 cursor-pointer font-medium"
-            >
-              ✅ True
-            </label>
+            ✅ True
           </div>
 
           <div
-            className={`flex items-center p-4 rounded-lg border-2 transition-colors cursor-pointer ${
+            className={`flex items-center justify-center w-full md:w-40 p-4 rounded-lg border-2 font-semibold text-lg transition-colors cursor-pointer ${
               selectedAnswers[currentIndex] === "False"
-                ? "bg-red-100 border-red-300"
-                : "bg-white hover:bg-gray-50 border-gray-200"
+                ? "bg-red-600 text-white border-red-600"
+                : "bg-white text-gray-700 hover:bg-gray-100 border-gray-300"
             }`}
             onClick={() => handleAnswerSelect(currentIndex, "False")}
           >
-            <input
-              type="radio"
-              id={`q${currentIndex}_false`}
-              name={`question_${currentIndex}`}
-              value="False"
-              checked={selectedAnswers[currentIndex] === "False"}
-              onChange={() => handleAnswerSelect(currentIndex, "False")}
-              className="mr-3 text-red-600 focus:ring-red-500"
-            />
-            <label
-              htmlFor={`q${currentIndex}_false`}
-              className="text-gray-700 cursor-pointer font-medium"
-            >
-              ❌ False
-            </label>
+            ❌ False
           </div>
         </div>
       </div>
@@ -1123,22 +1097,26 @@ export const TrueFalseContent = ({ isActive, refreshTrigger }) => {
         </button>
 
         {/* Numbered Navigation Buttons */}
-        <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto max-w-xs sm:max-w-none">
-          {questions.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => setCurrentIndex(index)}
-              className={`min-w-[28px] h-7 sm:w-8 sm:h-8 rounded-full text-xs sm:text-sm font-medium transition-colors hidden md:flex flex-shrink-0 ${
-                index === currentIndex
-                  ? "bg-green-600 text-white"
-                  : selectedAnswers[index]
-                  ? "bg-green-200 text-green-800"
-                  : "bg-gray-200 text-gray-600 hover:bg-gray-300"
-              }`}
-            >
-              {index + 1}
-            </button>
-          ))}
+        <div className="w-full flex justify-center">
+          <div className="flex justify-center w-full overflow-x-auto">
+            <div className="flex items-center gap-1 sm:gap-2 px-2 mx-auto">
+              {questions.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentIndex(index)}
+                  className={`min-w-[28px] h-7 sm:w-8 sm:h-8 rounded-full text-xs sm:text-sm font-medium flex justify-center items-center flex-shrink-0 ${
+                    index === currentIndex
+                      ? "bg-green-600 text-white"
+                      : selectedAnswers[index]
+                      ? "bg-green-200 text-green-800"
+                      : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                  }`}
+                >
+                  {index + 1}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {currentIndex === questions.length - 1 ? (

@@ -591,10 +591,24 @@ const DifficultyContent = ({ selectedDifficulty }) => {
 
           {/* Navigation Buttons */}
           <div className="flex justify-between items-center mt-6">
-            <button
+            {/* <button
               onClick={handlePreviousQuestion}
               disabled={currentQuestionIndex === 0}
               className="px-4 py-2 hover:bg-[#1f2c63] text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed bg-[#0c1125] transition-colors"
+            >
+              Previous
+            </button> */}
+
+            <button
+              onClick={handlePreviousQuestion}
+              disabled={currentQuestionIndex === 0}
+              className={`px-6 py-2 rounded-lg text-white font-semibold shadow-md transition-all duration-200 transform hover:scale-105 bg-gradient-to-r ${
+                difficultyObj?.id === "easy"
+                  ? "from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+                  : difficultyObj?.id === "medium"
+                  ? "from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700"
+                  : "from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               Previous
             </button>
@@ -626,10 +640,24 @@ const DifficultyContent = ({ selectedDifficulty }) => {
                 ✅ Submit Quiz
               </button>
             ) : (
+              // <button
+              //   onClick={handleNextQuestion}
+              //   disabled={currentQuestionIndex === data.length - 1}
+              //   className="px-4 py-2 bg-[#0c1125] text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#1f2c63] transition-colors"
+              // >
+              //   Next
+              // </button>
+
               <button
                 onClick={handleNextQuestion}
                 disabled={currentQuestionIndex === data.length - 1}
-                className="px-4 py-2 bg-[#0c1125] text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#1f2c63] transition-colors"
+                className={`px-6 py-2 rounded-lg text-white font-semibold shadow-md transition-all duration-200 transform hover:scale-105 bg-gradient-to-r ${
+                  difficultyObj?.id === "easy"
+                    ? "from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+                    : difficultyObj?.id === "medium"
+                    ? "from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700"
+                    : "from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 Next
               </button>
