@@ -24,29 +24,30 @@ export const displayMode = [
 
 export const difficultyLevel = [
   {
-    id: "easy",
-    name: "Easy",
-    emoji: "😊",
+    value: "easy",
+    label: "Easy",
+    icon: "😊",
     description: "Simple and straightforward questions",
-    color: "from-green-400 to-green-600",
+    color: "green",
   },
   {
-    id: "medium",
-    name: "Medium",
-    emoji: "🤔",
+    value: "medium",
+    label: "Medium",
+    icon: "🤔",
     description: "Moderately challenging questions",
-    color: "from-yellow-400 to-orange-500",
+    color: "yellow",
   },
   {
-    id: "hard",
-    name: "Hard",
-    emoji: "🧠",
+    value: "hard",
+    label: "Hard",
+    icon: "🧠",
     description: "Difficult and complex questions",
-    color: "from-red-400 to-red-600",
+    color: "red",
   },
 ];
 
 export const categories = [
+  { id: "any", categoryOption: "Any Category", emoji: "🎯" },
   { id: 9, categoryOption: "General Knowledge", emoji: "🧠" },
   { id: 10, categoryOption: "Entertainment: Books", emoji: "📚" },
   { id: 11, categoryOption: "Entertainment: Film", emoji: "🎬" },

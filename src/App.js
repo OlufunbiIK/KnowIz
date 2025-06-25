@@ -4,8 +4,9 @@ import Header from "./components/Header";
 import Intro from "./components/Intro";
 import Quiz from "./components/Quiz";
 import Display from "./components/Display";
-import IntegratedCategoryPage from "./components/category/AllCategories";
-import IntegratedDifficultyPage from "./components/level/AllLevels";
+import Signup from "./pages/SignUp";
+import Login from "./pages/Login";
+import ScoreHistory from "./pages/ScoreHistory";
 
 function App() {
   return (
@@ -13,14 +14,12 @@ function App() {
       <div className="App">
         <Header />
         <Routes>
-          <Route path="/" element={<Intro />} />
+          <Route path="/" element={<Signup />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/intro" element={<Intro />} />
           <Route path="/quiz" element={<Quiz />} />
           <Route path="/display" element={<Display />} />
-          <Route path="/category/:name" element={<IntegratedCategoryPage />} />
-          <Route
-            path="/difficulty/:level"
-            element={<IntegratedDifficultyPage />}
-          />
+          <Route path="/scores" element={<ScoreHistory />} />
         </Routes>
       </div>
     </Router>

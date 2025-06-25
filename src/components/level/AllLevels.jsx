@@ -591,14 +591,6 @@ const DifficultyContent = ({ selectedDifficulty }) => {
 
           {/* Navigation Buttons */}
           <div className="flex justify-between items-center mt-6">
-            {/* <button
-              onClick={handlePreviousQuestion}
-              disabled={currentQuestionIndex === 0}
-              className="px-4 py-2 hover:bg-[#1f2c63] text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed bg-[#0c1125] transition-colors"
-            >
-              Previous
-            </button> */}
-
             <button
               onClick={handlePreviousQuestion}
               disabled={currentQuestionIndex === 0}
@@ -640,14 +632,6 @@ const DifficultyContent = ({ selectedDifficulty }) => {
                 ✅ Submit Quiz
               </button>
             ) : (
-              // <button
-              //   onClick={handleNextQuestion}
-              //   disabled={currentQuestionIndex === data.length - 1}
-              //   className="px-4 py-2 bg-[#0c1125] text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#1f2c63] transition-colors"
-              // >
-              //   Next
-              // </button>
-
               <button
                 onClick={handleNextQuestion}
                 disabled={currentQuestionIndex === data.length - 1}
