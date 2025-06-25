@@ -1,5 +1,40 @@
+// import "./App.css";
+// import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+// import Header from "./components/Header";
+// import Intro from "./components/Intro";
+// import Quiz from "./components/Quiz";
+// import Display from "./components/Display";
+// import Signup from "./pages/SignUp";
+// import Login from "./pages/Login";
+// import ScoreHistory from "./pages/ScoreHistory";
+
+// function App() {
+//   return (
+//     <Router>
+//       <div className="App">
+//         <Header />
+//         <Routes>
+//           <Route path="/" element={<Signup />} />
+//           <Route path="/login" element={<Login />} />
+//           <Route path="/intro" element={<Intro />} />
+//           <Route path="/quiz" element={<Quiz />} />
+//           <Route path="/display" element={<Display />} />
+//           <Route path="/scores" element={<ScoreHistory />} />
+//         </Routes>
+//       </div>
+//     </Router>
+//   );
+// }
+
+// export default App;
+
 import "./App.css";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
 import Header from "./components/Header";
 import Intro from "./components/Intro";
 import Quiz from "./components/Quiz";
@@ -8,20 +43,32 @@ import Signup from "./pages/SignUp";
 import Login from "./pages/Login";
 import ScoreHistory from "./pages/ScoreHistory";
 
+function AppContent() {
+  const location = useLocation();
+
+  // Define routes that should not show the header
+  const routesWithoutHeader = ["/", "/login"];
+  const shouldShowHeader = !routesWithoutHeader.includes(location.pathname);
+
+  return (
+    <div className="App">
+      {shouldShowHeader && <Header />}
+      <Routes>
+        <Route path="/" element={<Signup />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/intro" element={<Intro />} />
+        <Route path="/quiz" element={<Quiz />} />
+        <Route path="/display" element={<Display />} />
+        <Route path="/scores" element={<ScoreHistory />} />
+      </Routes>
+    </div>
+  );
+}
+
 function App() {
   return (
     <Router>
-      <div className="App">
-        <Header />
-        <Routes>
-          <Route path="/" element={<Signup />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/intro" element={<Intro />} />
-          <Route path="/quiz" element={<Quiz />} />
-          <Route path="/display" element={<Display />} />
-          <Route path="/scores" element={<ScoreHistory />} />
-        </Routes>
-      </div>
+      <AppContent />
     </Router>
   );
 }
